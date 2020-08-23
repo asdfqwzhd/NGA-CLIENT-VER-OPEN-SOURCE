@@ -193,25 +193,9 @@ public class ArticleTabFragment extends BaseRxFragment {
                 break;
             case R.id.menu_nightmode:
                 ThemeManager.getInstance().setNightMode(true);
-                Observable.timer(0, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new BaseSubscriber<Long>() {
-                            @Override
-                            public void onNext(Long aLong) {
-                                getActivity().recreate();
-                            }
-                        });
                 break;
             case R.id.menu_daymode:
                 ThemeManager.getInstance().setNightMode(false);
-                Observable.timer(0, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new BaseSubscriber<Long>() {
-                            @Override
-                            public void onNext(Long aLong) {
-                                getActivity().recreate();
-                            }
-                        });
                 break;
             case R.id.menu_download:
                 mRequestParam.page = mViewPager.getCurrentItem() + 1;
@@ -269,7 +253,10 @@ public class ArticleTabFragment extends BaseRxFragment {
     public void onPrepareOptionsMenu(Menu menu) {
         menu.findItem(R.id.menu_goto_floor).setVisible(mReplyCount != 0);
 
-        if (ThemeManager.getInstance().isNightMode()) {
+        if (ThemeManager.getInstance().isNightModeFollowSystem()) {
+            menu.findItem(R.id.menu_nightmode).setVisible(false);
+            menu.findItem(R.id.menu_daymode).setVisible(false);
+        } else if (ThemeManager.getInstance().isNightMode()) {
             menu.findItem(R.id.menu_nightmode).setVisible(false);
             menu.findItem(R.id.menu_daymode).setVisible(true);
         } else {
@@ -277,7 +264,7 @@ public class ArticleTabFragment extends BaseRxFragment {
             menu.findItem(R.id.menu_daymode).setVisible(false);
         }
 
-        if (mRequestParam.pid != 0) {
+        if (mRequestParam.pid != 0 || mRequestParam.topicInfo == null) {
             menu.findItem(R.id.menu_download).setVisible(false);
         }
         super.onPrepareOptionsMenu(menu);
@@ -306,9 +293,7 @@ public class ArticleTabFragment extends BaseRxFragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == ActivityUtils.REQUEST_CODE_TOPIC_POST && resultCode == Activity.RESULT_OK) {
-            if (mViewPager.getCurrentItem() == mPagerAdapter.getCount() - 1) {
-                getActivityViewModel().setRefreshPage(mPagerAdapter.getCount());
-            }
+            getActivityViewModel().setRefreshPage(mViewPager.getCurrentItem() + 1);
         } else if (requestCode == ActivityUtils.REQUEST_CODE_JUMP_PAGE) {
             if (data.hasExtra("page")) {
                 mViewPager.setCurrentItem(data.getIntExtra("page", 0));

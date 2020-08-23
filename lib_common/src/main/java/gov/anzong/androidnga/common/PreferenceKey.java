@@ -85,4 +85,13 @@ public interface PreferenceKey {
     public static final String VERSION_MIRROR_CODE = "version_mirror_code";
 
     public static final String VERSION_CODE = "version_code";
+
+    public static final String PREVIOUS_VERSION_CODE = "previous_version_code";
+
+    public static final String KEY_WEBVIEW_DATA_INDEX = "webview_data_index";
+
+    public static final String KEY_CLEAR_CACHE = "key_clear_cache";
+
+    public static final String KEY_WEBVIEW_TEXT_ZOOM = "key_webview_zoom_size";
+
 }

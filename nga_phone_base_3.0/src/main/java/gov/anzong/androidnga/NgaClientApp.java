@@ -7,10 +7,6 @@ import android.webkit.WebView;
 import com.alibaba.android.arouter.launcher.ARouter;
 import com.justwen.androidnga.cloud.CloudServerManager;
 
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import gov.anzong.androidnga.base.util.ContextUtils;
 import gov.anzong.androidnga.base.util.PreferenceUtils;
 import gov.anzong.androidnga.common.PreferenceKey;
@@ -24,31 +20,27 @@ public class NgaClientApp extends Application {
 
     private static final String TAG = NgaClientApp.class.getSimpleName();
 
-    private boolean mNewVersion;
-
-    private boolean mMirrorVersionUpgrade;
+    private static boolean sNewVersion;
 
     @Override
     public void onCreate() {
         NLog.w(TAG, "app nga android start");
         ContextUtils.setApplication(this);
+        checkNewVersion();
         VersionUpgradeHelper.upgrade();
         initCoreModule();
         initRouter();
         super.onCreate();
 
         fixWebViewMultiProcessException();
-        checkNewVersion();
-        CloudServerManager.init(this, mMirrorVersionUpgrade);
+        CloudServerManager.init(this);
+        Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandlerProxy(Thread.getDefaultUncaughtExceptionHandler()));
     }
 
     private void fixWebViewMultiProcessException() {
-        Object obj = ReflectUtils.invokeMethodAndGetResult(Process.class, "myPpid");
-        if (obj != null) {
-            int ppid = (int) obj;
-            if (ppid == 1) {
-                WebView.setDataDirectorySuffix("_multi");
-            }
+        int index = PreferenceUtils.getData(PreferenceKey.KEY_WEBVIEW_DATA_INDEX, 0);
+        if (index > 0) {
+            WebView.setDataDirectorySuffix(String.valueOf(index));
         }
     }
 
@@ -69,36 +61,21 @@ public class NgaClientApp extends Application {
     }
 
     private void checkNewVersion() {
-        try {
-            Matcher matcher = Pattern.compile("([0-9]+)\\.([0-9]+)\\.([0-9]+)").matcher(BuildConfig.VERSION_NAME);
-            if (matcher.find()) {
-                int majorCode = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
-                int mirrorCode = Integer.parseInt(Objects.requireNonNull(matcher.group(2)));
-
-                if (majorCode > PreferenceUtils.getData(PreferenceKey.VERSION_MAJOR_CODE, 0)
-                        || mirrorCode > PreferenceUtils.getData(PreferenceKey.VERSION_MIRROR_CODE, 0)) {
-                    PreferenceUtils.putData(PreferenceKey.VERSION_MAJOR_CODE, majorCode);
-                    PreferenceUtils.putData(PreferenceKey.VERSION_MIRROR_CODE, mirrorCode);
-                    mMirrorVersionUpgrade = true;
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
         int versionCode = PreferenceUtils.getData(PreferenceKey.VERSION_CODE, 0);
         if (BuildConfig.VERSION_CODE > versionCode) {
+            PreferenceUtils.putData(PreferenceKey.PREVIOUS_VERSION_CODE, versionCode);
             PreferenceUtils.putData(PreferenceKey.VERSION_CODE, BuildConfig.VERSION_CODE);
-            mNewVersion = true;
+            sNewVersion = true;
+            PreferenceUtils.putData(PreferenceKey.KEY_WEBVIEW_DATA_INDEX, 0);
         }
     }
 
-    public boolean isNewVersion() {
-        return mNewVersion;
+    public static boolean isNewVersion() {
+        return sNewVersion;
     }
 
-    public void setNewVersion(boolean newVersion) {
-        mNewVersion = newVersion;
+    public static void setNewVersion(boolean newVersion) {
+        sNewVersion = newVersion;
     }
 
 }

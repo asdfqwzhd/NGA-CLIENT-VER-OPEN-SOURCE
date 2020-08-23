@@ -8,9 +8,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import gov.anzong.androidnga.NgaClientApp;
 import gov.anzong.androidnga.base.util.PreferenceUtils;
 import gov.anzong.androidnga.common.PreferenceKey;
-import sp.phone.http.bean.BoardBean;
+import sp.phone.http.bean.CategoryBean;
 import sp.phone.mvp.contract.BoardContract;
 import sp.phone.mvp.model.entity.Board;
 import sp.phone.mvp.model.entity.BoardCategory;
@@ -32,23 +33,66 @@ public class BoardModel extends BaseModel implements BoardContract.Model {
     }
 
     private List<BoardCategory> loadPreloadBoards() {
-        String categoryJson = StringUtils.getStringFromAssets("json/category_old.json");
-        List<BoardBean> beans = JSON.parseArray(categoryJson, BoardBean.class);
+        String categoryJson = StringUtils.getStringFromAssets("json/category.json");
+        List<CategoryBean> beans = JSON.parseArray(categoryJson, CategoryBean.class);
         List<BoardCategory> categories = new ArrayList<>();
-        for (BoardBean categoryBean : beans) {
 
-            BoardCategory category = new BoardCategory(categoryBean.name);
-            for (BoardBean.ContentBean contentBean : categoryBean.content) {
-                if (TextUtils.isEmpty(contentBean.nameS)) {
-                    category.addBoard(new Board(contentBean.fid, contentBean.stid, contentBean.name));
-                } else {
-                    category.addBoard(new Board(contentBean.fid, contentBean.stid, contentBean.nameS));
+        for (CategoryBean categoryBean : beans) {
+            BoardCategory category = new BoardCategory(categoryBean.getName());
+            for (CategoryBean.SubBean subBean : categoryBean.getSub()) {
+                BoardCategory subCategory = new BoardCategory(subBean.getName());
+                for (CategoryBean.SubBean.ContentBean contentBean : subBean.getContent()) {
+                    String boardName;
+                    if (TextUtils.isEmpty(contentBean.getNameS())) {
+                        boardName = contentBean.getName();
+                    } else {
+                        boardName = contentBean.getNameS();
+                    }
+
+                    Board board = new Board(contentBean.getFid(), contentBean.getStid(), boardName);
+                    board.setBoardHead(contentBean.getHead());
+                    subCategory.addBoard(board);
+
                 }
+                category.addSubCategory(subCategory);
             }
             categories.add(category);
         }
+        upgradeBookmarkBoard(categories);
         return categories;
     }
+
+    private void upgradeBookmarkBoard(List<BoardCategory> preloadCategory) {
+        if (!NgaClientApp.isNewVersion()) {
+            return;
+        }
+        int previousVersionCode = PreferenceUtils.getData(PreferenceKey.PREVIOUS_VERSION_CODE, Integer.MAX_VALUE);
+
+        if (previousVersionCode < 3033) {
+            List<Board> allPreloadBoards = new ArrayList<>();
+            for (BoardCategory category : preloadCategory) {
+                if (category.getSubCategoryList() != null && !category.getSubCategoryList().isEmpty()) {
+                    for (BoardCategory subCategory : category.getSubCategoryList()) {
+                        allPreloadBoards.addAll(subCategory.getBoardList());
+                    }
+                } else {
+                    allPreloadBoards.addAll(category.getBoardList());
+                }
+            }
+            for (Board board : allPreloadBoards) {
+                for (Board bookmark : mBookmarkCategory.getBoardList()) {
+                    if (bookmark.getFid() != 0 && bookmark.getFid() == board.getFid()) {
+                        bookmark.setBoardHead(board.getBoardHead());
+                    }
+                    if (bookmark.getStid() != 0 && bookmark.getStid() == board.getStid()) {
+                        bookmark.setFid(board.getFid());
+                    }
+                }
+            }
+            saveBookmark();
+        }
+    }
+
 
     private BoardCategory loadBookmarkBoards() {
         BoardCategory category = new BoardCategory("我的收藏");
@@ -59,6 +103,14 @@ public class BoardModel extends BaseModel implements BoardContract.Model {
         category.addBoards(bookmarkBoards);
         category.setBookmarkCategory(true);
         return category;
+    }
+
+    @Override
+    public void addBookmark(Board board) {
+        if (!mBookmarkCategory.contains(board)) {
+            mBookmarkCategory.addBoard(board);
+            saveBookmark();
+        }
     }
 
     @Override

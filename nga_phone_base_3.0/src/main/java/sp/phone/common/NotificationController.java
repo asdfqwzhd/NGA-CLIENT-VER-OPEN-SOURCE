@@ -21,7 +21,7 @@ import gov.anzong.androidnga.activity.MessageListActivity;
 import gov.anzong.androidnga.activity.RecentNotificationActivity;
 import gov.anzong.androidnga.base.util.ContextUtils;
 import gov.anzong.androidnga.common.PreferenceKey;
-import sp.phone.http.OnHttpCallBack;
+import gov.anzong.androidnga.http.OnHttpCallBack;
 import sp.phone.mvp.model.entity.NotificationInfo;
 import sp.phone.mvp.model.entity.RecentReplyInfo;
 import sp.phone.task.ForumNotificationTask;
@@ -75,7 +75,9 @@ public class NotificationController {
     }
 
     public void checkNotificationDelay() {
-        if (mConfiguration.isNotificationEnabled() && (System.currentTimeMillis() - mLastQueryTime) > DELAY_TIME) {
+        if (mConfiguration.isNotificationEnabled()
+                && UserManagerImpl.getInstance().hasValidUser()
+                && (System.currentTimeMillis() - mLastQueryTime) > DELAY_TIME) {
             mLastQueryTime = System.currentTimeMillis();
             mHandler.sendEmptyMessage(0);
         }
